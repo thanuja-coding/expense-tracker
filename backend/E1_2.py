@@ -31,8 +31,7 @@ def add_expense(user_id, title, amount, category, expense_date):
         "title": expense.title,
         "amount": expense.amount,
         "category": expense.category,
-        "expense_date": expense.expense_date,
-        "created_at": str(expense.created_at)
+        "expense_date": expense.expense_date
     }
     session.close()
     return response
