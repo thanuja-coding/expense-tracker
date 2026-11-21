@@ -1,40 +1,32 @@
 import os
 from datetime import datetime, timedelta, timezone
-
 import jwt
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
 import functions
-
-
 app = FastAPI(
     title="Expense Tracker API",
     description="Register and log in to your account",
 )
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 SECRET_KEY = os.getenv("JWT_SECRET_KEY","local-development-key-change-before-deploy",)
 ALGORITHM = "HS256"
-
 
 class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: str
 
-
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
-
 
 @app.post("/register", status_code=201)
 def register(user: UserRegister):
@@ -46,12 +38,10 @@ def register(user: UserRegister):
         email=str(user.email).lower(),
         password=user.password,
     )
-
-    if response is None:
+  if response is None:
         raise HTTPException(status_code=409,detail="Email address is already registered", )
 
     return response
-
 
 @app.post("/login")
 def login(user: UserLogin):
@@ -65,7 +55,6 @@ def login(user: UserLogin):
         SECRET_KEY,
         algorithm=ALGORITHM,
     )
-
     return { "access_token": token,"token_type": "bearer","user": user_data,}
 
 
