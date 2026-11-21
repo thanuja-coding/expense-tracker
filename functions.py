@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 from sqlalchemy import (Column,DateTime,Integer,String,create_engine,)
@@ -11,7 +10,6 @@ DB_PATH = "expenses.db"
 engine = create_engine(f"sqlite:///{DB_PATH}")
 Base = declarative_base()
 
-
 class Users(Base):
     __tablename__ = "users"
 
@@ -20,10 +18,8 @@ class Users(Base):
     email = Column(String, unique=True)
     hashed_password = Column(String)
     created_at = Column(DateTime, default=datetime.now)
-
-
+    
 Base.metadata.create_all(engine)
-
 password_hasher = PasswordHasher()
 
 def register_user(username, email, password):
@@ -39,18 +35,15 @@ def register_user(username, email, password):
         except IntegrityError:
             session.rollback()
             return None
-
         return {"id": user.id,"username": user.username,"email": user.email,"created_at": user.created_at.isoformat(),     }
     finally:
         session.close()
-
-
+        
 def login_user(email, password):
     session = Session(engine)
 
     try:
         user = session.query(Users).filter(Users.email == email).first()
-
         if user is None:
             return None
 
