@@ -35,3 +35,4 @@ def add_expense(user_id, title, amount, category, expense_date):
     }
     session.close()
     return response
+
