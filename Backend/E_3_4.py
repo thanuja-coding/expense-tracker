@@ -2,9 +2,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
 import function
-
 password_hasher = PasswordHasher()
 
 # A1 - Register user
@@ -22,14 +20,12 @@ def register_user(username, email, password):
             return None
 
         return { "id": user.id,"username": user.username,"email": user.email,"created_at": str(user.created_at), }
-
     finally:
         session.close()
 
 # A2 - Login user
 def login_user(email, password):
     session = Session(function.engine)
-
     try:
         user = session.query(function.Users).filter(
             function.Users.email == email
