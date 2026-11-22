@@ -1,17 +1,23 @@
 from sqlalchemy import Integer, String, Float, Column, create_engine, ForeignKey
 from sqlalchemy.orm import Session, declarative_base
-from datetime import datetime
+from datetime import datetime,timedelta , timezone
+import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from argon2.exceptions import VerifyMismatchError
 
 
-password_hasher = PasswordHasher()
+ph = PasswordHasher()
 
 DB_PATH = "expenses.db"
 engine = create_engine(f"sqlite:///{DB_PATH}")
 Base = declarative_base()
+
+
+ACCESS_TOKEN_EXPIRY = 15
+REFRESH_TOKEN_EXPIRY = 7*24*60
+SECRET_KEY ="SECRETCODE"
+ALGORITHM = "HS256"
+
 
 class Users(Base):
     __tablename__ = "users"
@@ -19,7 +25,6 @@ class Users(Base):
     username = Column(String)
     email = Column(String)
     hashed_password = Column(String)
-    role = Column(String)  # add this
     created_at = Column(String)
 
 
@@ -36,6 +41,8 @@ class Expenses(Base):
 
 Base.metadata.create_all(engine)
 
+
+#E1
 def get_expenses(user_id):
     session = Session(engine)
     expenses = session.query(Expenses).filter(Expenses.user_id == user_id).all()
@@ -52,6 +59,7 @@ def get_expenses(user_id):
     session.close()
     return response
 
+#E2
 def add_expense(user_id, title, amount, category, expense_date):
     session = Session(engine)
     new_expense = Expenses(user_id=user_id, title=title, amount=amount, category=category, expense_date=expense_date, created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -68,38 +76,65 @@ def add_expense(user_id, title, amount, category, expense_date):
     session.close()
     return response
 
-def register_user(username, email, password, role):
+
+def verify_login(email,password):
     session = Session(engine)
-    try:
-        user = Users(  username=username,email=email, hashed_password=password_hasher.hash(password), role=role,created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-
-        return {  "id": user.id, "username": user.username,"email": user.email,"role": user.role,"created_at": str(user.created_at)  }
-
-    except IntegrityError:
-        session.rollback()
-        return None
-
-    finally:
+    user = session.query(Users).filter_by(email=email).first()
+    if user is None:
         session.close()
+        return False
+    try :
+        ph.verify(user.hashed_password,password)
 
-def login_user(email, password):
+    except VerifyMismatchError:
+        session.close()
+        return False
+
+    access_token = create_token(user_id=user.id,token_type="access")
+    refresh_token= create_token(user_id=user.id,token_type="refresh")
+
+    session.close()
+    return {"access_token":access_token,"refresh_token":refresh_token}
+
+
+def create_token(user_id,token_type):
+    time = ACCESS_TOKEN_EXPIRY
+    if token_type == "refresh":
+        time = REFRESH_TOKEN_EXPIRY
+    payload={
+        "user_id":user_id,
+        "token_type":token_type,
+        "exp":datetime.now(timezone.utc)+timedelta(minutes=time)
+    }
+    token =jwt.encode(payload=payload,key=SECRET_KEY,algorithm=ALGORITHM)
+    return token
+
+def verify_token(token,token_type):
+    try:
+        payload = jwt.decode(jwt=token,key=SECRET_KEY,algorithms=[ALGORITHM])
+    except:
+        return False
+
+    if payload ["token_type"] == token_type:
+        return payload
+    return False
+
+
+#user
+def register_user(username :str, email: str, password: str):
     session = Session(engine)
+    user_exists = session.query(Users).filter_by(email = email).first()
+    if user_exists is not None:
+        session.close()
+        return False
 
     try:
-        user = (  session.query(Users).filter(Users.email == email)
-            .first()
-        )
-        if user is None:
-            return None
-        try:
-            password_hasher.verify(user.hashed_password, password)
-        except VerificationError:
-            return None
-
-        return {"id": user.id, "username": user.username, "email": user.email, "role": user.role }
-
-    finally:
+        hashed_password = ph.hash(password)
+    except Exception:
         session.close()
+        return False
+
+    session.add(Users(username=username, email=email, hashed_password=hashed_password, created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    session.commit()
+    session.close()
+    return True
