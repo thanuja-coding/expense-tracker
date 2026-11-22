@@ -4,7 +4,7 @@ from pydantic import BaseModel , Field
 from datetime import date
 import functions
 import A1_2
-import E1_2
+import E_3_4
 
 
 app = FastAPI(
@@ -37,13 +37,13 @@ class ExpenseCreate(BaseModel):
 @app.get("/expenses")
 def expenses(token = Header(None)):
     payload = authorize(token)
-    return E1_2.get_expenses(user_id=payload["user_id"])
+    return E_3_4.get_expenses(user_id=payload["user_id"])
 
 #E2
 @app.post("/expenses")
 def add_expense(expense: ExpenseCreate , token = Header(None)):
     payload = authorize(token)
-    return E1_2.add_expense(user_id=payload["user_id"] , title=expense.title , amount=expense.amount , category=expense.category , expense_date=str(expense.expense_date))
+    return E_3_4.add_expense(user_id=payload["user_id"] , title=expense.title , amount=expense.amount , category=expense.category , expense_date=str(expense.expense_date))
 
 @app.post("/login")
 def login(email=Body(),password=Body()):
