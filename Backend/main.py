@@ -6,20 +6,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 
 import E_3_4
+
 app = FastAPI(
     title="Expense Tracker API",
-    description="Register and log in to your account",)
+    description="Register and log in to your account",
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins={"http://localhost:5173", "http://127.0.0.1:5173"},
     allow_methods={"*"},
-    allow_headers={"*"},)
+    allow_headers={"*"},
+)
 
 SECRET_KEY = os.getenv(
     "JWT_SECRET_KEY",
-    "local-development-key-change-before-deploy",)
+    "local-development-key-change-before-deploy",
+)
 ALGORITHM = "HS256"
+
 
 def create_access_token(data):
     token_data = data.copy()
@@ -28,6 +33,7 @@ def create_access_token(data):
 
     return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
 
+
 def create_refresh_token(data):
     token_data = data.copy()
     token_data["exp"] = datetime.now(timezone.utc) + timedelta(days=7)
@@ -35,31 +41,27 @@ def create_refresh_token(data):
 
     return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
 
+
 class UserRegister(BaseModel):
     username: str
     email: EmailStr
     password: str
+    role: str
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+
 # A Register
 @app.post("/register", status_code=201)
 def register(user: UserRegister):
     if not user.username.strip() or not user.password.strip():
-        raise HTTPException(
-            status_code=422,
-            detail="Username and password cannot be empty", )
-    response = E_3_4.register_user(
-        user.username.strip(),
-        str(user.email).lower(),
-        user.password,)
+        raise HTTPException(status_code=422, detail="Username and password cannot be empty", )
+    response = E_3_4.register_user(user.username.strip(),str(user.email).lower(),user.password, user.role,)
 
     if response is None:
-        raise HTTPException(
-            status_code=409,
-            detail="Email address is already registered",)
+        raise HTTPException(status_code=409,detail="Email address is already registered",)
     return response
 
 #  Login
