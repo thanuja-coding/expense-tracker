@@ -1,46 +1,46 @@
-﻿from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+﻿from sqlalchemy.orm import Session
+from datetime import datetime
+from functions import engine, Expenses
 
-import functions
 
-password_hasher = PasswordHasher()
+#E1
+def get_expenses(user_id):
+    session = Session(engine)
+    expenses = session.query(Expenses).filter(Expenses.user_id == user_id).all()
+    response = []
+    for expense in expenses:
+        response.append({
+            "id": expense.id,
+            "title": expense.title,
+            "amount": expense.amount,
+            "category": expense.category,
+            "expense_date": expense.expense_date,
+            "created_at": expense.created_at
+        })
+    session.close()
+    return response
 
-# A1 - Register user
-def register_user(username, email, password, role):
-    session = Session(functions.engine)
 
-    try:
-        user = functions.Users(username=username,email=email, hashed_password=password_hasher.hash(password),role=role,)
-        session.add(user)
-        try:
-            session.commit()
-            session.refresh(user)
-        except IntegrityError:
-            session.rollback()
-            return None
-
-        return {"id": user.id,"username": user.username,"email": user.email,"role": user.role,"created_at": str(user.created_at),}
-    finally:
-        session.close()
-
-# A2 - Login user
-def login_user(email, password):
-    session = Session(functions.engine)
-
-    try:
-        user = session.query(functions.Users).filter( functions.Users.email == email
-        ).first()
-
-        if user is None:
-            return None
-
-        try:
-            password_hasher.verify(user.hashed_password, password)
-        except VerificationError:
-            return None
-
-        return {"id": user.id, "username": user.username,"email": user.email,"role": user.role,}
-    finally:
-        session.close()
+#E2
+def add_expense(user_id, title, amount, category, expense_date):
+    session = Session(engine)
+    new_expense = Expenses(
+        user_id=user_id,
+        title=title,
+        amount=amount,
+        category=category,
+        expense_date=expense_date,
+        created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    )
+    session.add(new_expense)
+    session.commit()
+    response = {
+        "id": new_expense.id,
+        "title": new_expense.title,
+        "amount": new_expense.amount,
+        "category": new_expense.category,
+        "expense_date": new_expense.expense_date,
+        "created_at": new_expense.created_at
+    }
+    session.close()
+    return response

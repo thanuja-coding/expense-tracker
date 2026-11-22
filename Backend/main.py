@@ -1,94 +1,59 @@
-import os
-from datetime import datetime, timedelta, timezone
-import jwt
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from fastapi import FastAPI , HTTPException , Header , Body
+from fastapi.middleware.cors import CORSMiddleware 
+from pydantic import BaseModel , Field
+from datetime import date
+import functions
+import A1_2
+import E1_2
 
-import E_3_4
 
 app = FastAPI(
-    title="Expense Tracker API",
-    description="Register and log in to your account",
+    title = "Expense Tracker API",
+    description="Register, login and manage your personal expenses",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins={"http://localhost:5173", "http://127.0.0.1:5173"},
-    allow_methods={"*"},
-    allow_headers={"*"},
+    allow_origins=["http://localhost:5173" , "http://127.0.0.1:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY",
-    "local-development-key-change-before-deploy",
-)
-ALGORITHM = "HS256"
+
+def authorize(token):
+    payload = functions.verify_token(token=token, token_type="access")
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or Expired token")
+    return payload
 
 
-def create_access_token(data):
-    token_data = data.copy()
-    token_data["exp"] = datetime.now(timezone.utc) + timedelta(minutes=30)
-    token_data["type"] = "access"
+class ExpenseCreate(BaseModel):
+    title: str = Field(min_length=1)
+    amount: float = Field(gt=0)
+    category: str = Field(min_length=1)
+    expense_date: date
 
-    return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
+#E1
+@app.get("/expenses")
+def expenses(token = Header(None)):
+    payload = authorize(token)
+    return E1_2.get_expenses(user_id=payload["user_id"])
 
+#E2
+@app.post("/expenses")
+def add_expense(expense: ExpenseCreate , token = Header(None)):
+    payload = authorize(token)
+    return E1_2.add_expense(user_id=payload["user_id"] , title=expense.title , amount=expense.amount , category=expense.category , expense_date=str(expense.expense_date))
 
-def create_refresh_token(data):
-    token_data = data.copy()
-    token_data["exp"] = datetime.now(timezone.utc) + timedelta(days=7)
-    token_data["type"] = "refresh"
-
-    return jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-
-
-class UserRegister(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
-    role: str
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-
-# A Register
-@app.post("/register", status_code=201)
-def register(user: UserRegister):
-    if not user.username.strip() or not user.password.strip():
-        raise HTTPException(status_code=422, detail="Username and password cannot be empty", )
-    response = E_3_4.register_user(user.username.strip(),str(user.email).lower(),user.password, user.role,)
-
-    if response is None:
-        raise HTTPException(status_code=409,detail="Email address is already registered",)
-    return response
-
-#  Login
 @app.post("/login")
-def login(user: UserLogin):
-    user_data = E_3_4.login_user(
-        str(user.email).lower(),
-        user.password,)
+def login(email=Body(),password=Body()):
+    token=A1_2.verify_login(email=email,password=password)
+    if not token :
+        raise HTTPException(status_code=401,detail="Invalid email or password")
+    return token
 
-    if user_data is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password", )
-
-    token_data = {
-        "id": user_data["id"],
-        "username": user_data["username"],
-        "email": user_data["email"],
-    }
-
-    return {
-        "access_token": create_access_token(token_data),
-        "refresh_token": create_refresh_token(token_data),
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)
+@app.post("/register")
+def register_user(username=Body(),email=Body(),password=Body()):
+    if A1_2.register_user(username=username,email=email,password=password):
+        return {"message":"user registered successfully"}
+    raise HTTPException(status_code=400,detail="User already exists")
