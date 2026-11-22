@@ -19,24 +19,23 @@ SECRET_KEY ="SECRETCODE"
 ALGORITHM = "HS256"
 
 
-class Users(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    username = Column(String)
-    email = Column(String)
-    hashed_password = Column(String)
-    created_at = Column(String)
-
-
 class Expenses(Base):
     __tablename__ = "expenses"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("Users.user_id"))
     title = Column(String)
     amount = Column(Float)
     category = Column(String)
     expense_date = Column(String)
     created_at = Column(String)
+
+class User(Base):
+    __tablename__ = "Users"
+    user_id = Column[int](Integer,primary_key=True)
+    user_name=Column[str](String)
+    email=Column[str](String)
+    password=Column[str](String)
+    role=Column[str](String, default="user")
 
 
 Base.metadata.create_all(engine)
@@ -45,9 +44,9 @@ Base.metadata.create_all(engine)
 #E1
 def get_expenses(user_id):
     session = Session(engine)
-    expenses = session.query(Expenses).filter(Expenses.user_id == user_id).all()
+    query = session.query(Expenses).filter(Expenses.user_id == user_id)
     response = []
-    for expense in expenses:
+    for expense in query.all():
         response.append({
             "id": expense.id,
             "title": expense.title,
@@ -79,29 +78,30 @@ def add_expense(user_id, title, amount, category, expense_date):
 
 def verify_login(email,password):
     session = Session(engine)
-    user = session.query(Users).filter_by(email=email).first()
+    user = session.query(User).filter_by(email=email).first()
     if user is None:
         session.close()
         return False
     try :
-        ph.verify(user.hashed_password,password)
-
+        ph.verify(user.password,password)
+       
     except VerifyMismatchError:
         session.close()
-        return False
-
-    access_token = create_token(user_id=user.id,token_type="access")
-    refresh_token= create_token(user_id=user.id,token_type="refresh")
+        return False 
+    
+    access_token = create_token(user_id=user.user_id,token_type="access",role=user.role)
+    refresh_token= create_token(user_id=user.user_id,token_type="refresh",role=user.role)
 
     session.close()
     return {"access_token":access_token,"refresh_token":refresh_token}
 
 
-def create_token(user_id,token_type):
+def create_token(user_id,token_type,role):
     time = ACCESS_TOKEN_EXPIRY
     if token_type == "refresh":
         time = REFRESH_TOKEN_EXPIRY
     payload={
+        "role":role,
         "user_id":user_id,
         "token_type":token_type,
         "exp":datetime.now(timezone.utc)+timedelta(minutes=time)
@@ -114,16 +114,16 @@ def verify_token(token,token_type):
         payload = jwt.decode(jwt=token,key=SECRET_KEY,algorithms=[ALGORITHM])
     except:
         return False
-
+    
     if payload ["token_type"] == token_type:
         return payload
     return False
 
 
 #user
-def register_user(username :str, email: str, password: str):
+def register_user(user_name :str, email: str, password: str, role: str):
     session = Session(engine)
-    user_exists = session.query(Users).filter_by(email = email).first()
+    user_exists = session.query(User).filter_by(email = email).first()
     if user_exists is not None:
         session.close()
         return False
@@ -134,7 +134,7 @@ def register_user(username :str, email: str, password: str):
         session.close()
         return False
 
-    session.add(Users(username=username, email=email, hashed_password=hashed_password, created_at=datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    session.add(User(user_name=user_name, email=email, password=hashed_password, role=role))
     session.commit()
     session.close()
     return True
