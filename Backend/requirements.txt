@@ -1,6 +1,0 @@
-fastapi
-uvicorn
-sqlalchemy
-pyjwt
-argon2-cffi
-email-validator
