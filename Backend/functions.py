@@ -89,14 +89,11 @@ def login_user(email, password):
     session = Session(engine)
 
     try:
-        user = (
-            session.query(Users).filter(Users.email == email)
+        user = (  session.query(Users).filter(Users.email == email)
             .first()
         )
-
         if user is None:
             return None
-
         try:
             password_hasher.verify(user.hashed_password, password)
         except VerificationError:
