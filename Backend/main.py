@@ -53,6 +53,15 @@ def login(email=Body(),password=Body()):
         raise HTTPException(status_code=401,detail="Invalid email or password")
     return token
 
+@app.post("/refresh")
+def refresh(refresh_token=Header(None)):
+    payload = functions.verify_token(token=refresh_token,token_type="refresh")
+    if not payload:
+        raise HTTPException(status_code=401,detail="Invalid or Expired refresh token")
+
+    access_token = functions.create_token(user_id=payload["user_id"],token_type="access",role=payload["role"])
+    return {"access_token":access_token}
+
 @app.post("/register")
 def register_user(user_name=Body(),email=Body(),password=Body(),role=Body("user")):
     if role not in ROLES:

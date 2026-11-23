@@ -138,3 +138,17 @@ def register_user(user_name :str, email: str, password: str, role: str):
     session.commit()
     session.close()
     return True
+
+
+
+#A3
+def refresh_access_token(refresh_token):
+
+    payload = verify_token(refresh_token, token_type="refresh")
+
+    if not payload:
+        return None
+
+    access_token = create_token(user_id=payload["user_id"], token_type="access", role=payload["role"])
+
+    return access_token 
