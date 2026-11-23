@@ -108,3 +108,29 @@ Protected endpoints read the access token from the `token` header. The refresh e
 | expense_date | Date of the expense |
 | created_at | When the record was created |
 
+
+## 6. Screenshots
+
+**Registration**
+![Registration](screenshots/register.png)
+Registering a new user with username, email and password.
+
+**Login**
+![Login](screenshots/login.png)
+Logging in with email and password.
+
+**Dashboard**
+![Dashboard](screenshots/dashboard.png)
+The dashboard loads the logged-in user's expenses automatically after login.
+
+**Error message**
+![Error message](screenshots/error.png)
+Registering with an email that already exists shows "User already exists" (409).
+
+**API working in /docs**
+![Swagger](screenshots/docs.png)
+GET /expenses returning 200 with the user's expenses on the live EC2 link.
+
+**GitHub Actions**
+![GitHub Actions](screenshots/actions.png)
+A green GitHub Actions run that built the Docker image and deployed it to EC2.
