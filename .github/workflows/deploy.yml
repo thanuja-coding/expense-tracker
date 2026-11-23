@@ -44,7 +44,7 @@ jobs:
             sudo usermod -aG docker $USER
             sudo docker pull ${{ env.IMAGE }}:${{ env.VERSION }}
             sudo docker rm -f expense-app || true
-            touch /home/ubuntu/expenses.db
-            sudo docker run -d --name expense-app --restart unless-stopped -p 8001:8001 -v /home/ubuntu/expenses.db:/app/expenses.db ${{ env.IMAGE }}:${{ env.VERSION }}
+            touch /home/ec2-user/expenses.db
+            sudo docker run -d --name expense-app --restart unless-stopped -p 8001:8001 -v /home/ec2-user/expenses.db:/app/expenses.db ${{ env.IMAGE }}:${{ env.VERSION }}
             sudo docker image prune -af
             sudo docker ps --filter name=expense-app
