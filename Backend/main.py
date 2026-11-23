@@ -7,7 +7,7 @@ import functions
 
 app = FastAPI(
     title = "Expense Tracker API",
-    description="Register, login and manage your personal expenses",
+    description="Register, login and manage your personal expenses -v2",
 )
 ROLES = ["admin", "user"]
 

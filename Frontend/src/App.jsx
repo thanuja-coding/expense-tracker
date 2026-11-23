@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-const API_URL = "http://127.0.0.1:8001";
+const API_URL = "http://15.206.186.50:8001";
 
 // Show error messages from the backend as text
 function errorText(data) {
