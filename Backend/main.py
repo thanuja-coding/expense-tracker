@@ -1,6 +1,6 @@
 from fastapi import FastAPI , HTTPException , Header , Body
 from fastapi.middleware.cors import CORSMiddleware 
-from pydantic import BaseModel , Field
+from pydantic import BaseModel , Field , EmailStr
 from datetime import date
 import functions
 
@@ -38,7 +38,8 @@ class ExpenseCreate(BaseModel):
 @app.get("/expenses")
 def expenses(token = Header(None)):
     payload = authorize(token, ["admin", "user"])
-    return functions.get_expenses(user_id=payload["user_id"])
+    result = functions.get_expenses(payload["user_id"])
+    return result
 
 #E2
 @app.post("/expenses")
@@ -47,7 +48,7 @@ def add_expense(expense: ExpenseCreate , token = Header(None)):
     return functions.add_expense(user_id=payload["user_id"] , title=expense.title , amount=expense.amount , category=expense.category , expense_date=str(expense.expense_date))
 
 @app.post("/login")
-def login(email=Body(),password=Body()):
+def login(email: EmailStr = Body(),password: str = Body(min_length=1)):
     token=functions.verify_login(email=email,password=password)
     if not token :
         raise HTTPException(status_code=401,detail="Invalid email or password")
@@ -63,9 +64,9 @@ def refresh(refresh_token=Header(None)):
     return {"access_token":access_token}
 
 @app.post("/register")
-def register_user(user_name=Body(),email=Body(),password=Body(),role=Body("user")):
+def register_user(user_name: str = Body(min_length=1),email: EmailStr = Body(),password: str = Body(min_length=1),role=Body("user")):
     if role not in ROLES:
         raise HTTPException(status_code=400,detail="Role must be admin or user")
     if functions.register_user(user_name=user_name,email=email,password=password,role=role):
         return {"message":"user registered successfully"}
-    raise HTTPException(status_code=400,detail="User already exists")
+    raise HTTPException(status_code=409,detail="User already exists")

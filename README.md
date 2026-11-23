@@ -1,86 +1,110 @@
-
 # Expense Tracker
 
 ## Problem Statement
 
-Every month starts with a budget and ends with a question: "Where did all my money go?"
+People spend money every day on food, travel, bills and shopping, but most don't keep track of it. By the end of the month, they don't know where their money went.
 
-A coffee here, a cab ride there, a subscription you forgot about. Small expenses pile up quietly, and by the time you check your balance, it's too late to remember what you spent on. Notes apps get messy, spreadsheets get abandoned, and receipts get lost.
+Notes and spreadsheets are easy to forget and hard to keep private.
 
-People don't need complicated finance software. They need a simple, private place to record what they spend and see it all clearly.
+A simple, secure expense tracker. Each user creates an account, logs in, and records their expenses with a title, amount, category and date. Every user can see only their own expenses, so their data stays private.
+## 1. Project and team
 
-The challenge is simple: How can we give every user a secure, personal space to record their expenses and view them in one place, accessible only to them?
+| Member | Endpoints built |
+|---|---|
+| Thanuja | E1 `GET /expenses`, E2 `POST /expenses`, database tables, Docker, CI/CD |
+| Thamiksha Elluri | A1 `POST /register`, A2 `POST /login`, first frontend pages |
+| Ayushman Anand | A3 `POST /refresh`, React frontend, EC2 setup |
 
+**Tech stack:** FastAPI, SQLite (SQLAlchemy), JWT (PyJWT), Argon2 password hashing, React (Vite), Docker, GitHub Actions, AWS EC2.
 
-## 1. Who is doing what
+## 2. Live app
 
-Update your own row at every check-in.
+- **API docs (Swagger):** http://15.206.186.50:8001/docs
+- **Docker Hub image:** `gthanuja/expense`
 
-| Day | Partner | What are you doing? |
-|---|---|---|
-| Day 1 | Thanuja | creating tables and backend setup |
-| Day 1 |  |  |
-| Day 1 | | |
-| Day 2 |  |  |
-| Day 2 |  |  |
-| Day 2 |  |  |
-| Day 3 |  |  |
-| Day 3 |  |  |
-| Day 3 |  |  |
+## 3. How to run it
 
-## 2. Endpoint tracker
-| # | Method | Path | Request Body | Success Code | Error Codes |
-|---|---|---|---|---|---|
-| A1 | POST | /auth/register | username, email, password | 201 | 409, 422 |
-| A2 | POST | /auth/login | email, password | 200 | 401, 422 |
-| A3 | POST | /auth/refresh | refresh_token | 200 | 401, 422 |
-| E1 | GET | /expenses | NONE (Bearer access token) | 200 | 401 |
-| E2 | POST | /expenses | title, amount, category, expense_date | 201 | 401, 422 |
-
-
-
-## How to Run
-
-Backend
-
-Open a terminal and navigate to the backend folder:
-cd backend
-
-Install dependencies:
-pip install -r requirements.txt
-
-Start the FastAPI server:
+### Backend
+```bash
+cd Backend
+python -m pip install -r requirements.txt
 python -m uvicorn main:app --reload --port 8001
+```
+Open http://127.0.0.1:8001/docs
 
-Open the API documentation:
-Swagger UI: http://127.0.0.1:8001/docs
+### Frontend
+Run the backend first, then in a second terminal:
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+Open http://localhost:5173
 
-Frontend
+The backend address is set in one place: `API_URL` at the top of `Frontend/src/App.jsx`. Change it to `http://15.206.186.50:8001` to use the live EC2 backend.
 
+### Docker
+```bash
+cd Backend
+docker build -t gthanuja/expense:latest -f dockerfile .
+docker run -d --name expense-app -p 8001:8001 gthanuja/expense:latest
+```
+Open http://127.0.0.1:8001/docs
 
+### Deployment (CI/CD)
+Every push to `main` runs `.github/workflows/deploy.yml`, which:
+1. Builds the Docker image and pushes it to Docker Hub
+2. Connects to EC2 over SSH
+3. Pulls the new image, replaces the running container and starts it
+4. Mounts `/home/ec2-user/expenses.db` into the container, so records survive redeploys
 
-Docker
+Credentials are stored only in GitHub Actions Secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`.
 
-Build the image:
-docker build -t expense-tracker ./backend
+## 4. API contract
 
-Run the container:
-docker run -d -p 8001:8001 -v ./data:/app/data expense-tracker
+Protected endpoints read the access token from the `token` header. The refresh endpoint reads the refresh token from the `refresh-token` header.
 
-Deployment
+| # | Method | Path | Request body | Success |
+|---|---|---|---|---|
+| A1 | POST | `/register` | `{ "user_name", "email", "password" }` | 200 |
+| A2 | POST | `/login` | `{ "email", "password" }` | 200 → `{ access_token, refresh_token }` |
+| A3 | POST | `/refresh` | none (`refresh-token` header) | 200 → `{ access_token }` |
+| E1 | GET | `/expenses` | none (`token` header) | 200 |
+| E2 | POST | `/expenses` | `{ "title", "amount", "category", "expense_date" }` | 200 |
 
-Live on AWS EC2: http://<EC2_PUBLIC_IP>:8001/docs
+### Error rules
 
-### Flow of the Project Presentation
+| Scenario | Status |
+|---|---|
+| Registering with an email that already exists | 409 |
+| Missing or empty required fields | 422 |
+| Invalid email format | 422 |
+| Expense amount 0 or less | 422 |
+| Incorrect email or password | 401 |
+| Missing, invalid or expired access token | 401 |
+| Invalid or expired refresh token | 401 |
 
-->	Problem statement
-->	Distribution of work
-->	API contracts
-->	Frontend Demo
-->	Swagger
-->	Docker & CI/CD
-->	EC2 Deployment
-->	File structure
-->	Conclusion
-->	Interesting findings
-->	QNA
+## 5. Database
+
+**Users**
+
+| Column | Description |
+|---|---|
+| user_id | Primary key |
+| user_name | Username |
+| email | Email address (one account per email) |
+| password | Argon2 password hash, never plain text |
+| role | `user` or `admin` |
+
+**expenses**
+
+| Column | Description |
+|---|---|
+| id | Primary key |
+| user_id | Foreign key → Users.user_id |
+| title | Expense title |
+| amount | Amount (must be greater than 0) |
+| category | Category |
+| expense_date | Date of the expense |
+| created_at | When the record was created |
+
